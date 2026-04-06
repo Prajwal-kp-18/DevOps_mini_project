@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevOps Demo App</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>DevOps Demo</h1>
+      <p>Submit your message below.</p>
+
+      <form id="messageForm">
+        <label for="name">Name</label>
+        <input id="name" name="name" type="text" required />
+
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="4" required></textarea>
+
+        <button type="submit">Submit</button>
+      </form>
+
+      <p id="result" class="result"></p>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
