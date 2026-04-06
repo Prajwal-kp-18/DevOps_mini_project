@@ -3,7 +3,6 @@ pipeline {
 
   environment {
     IMAGE_NAME = 'devops-demo'
-    CONTAINER_NAME = 'devops-demo-container'
   }
 
   stages {
@@ -17,11 +16,12 @@ pipeline {
     stage('Cleanup') {
       steps {
         sh '''
-        set -e
-        if docker ps -a --format '{{.Names}}' | grep -Fxq "${CONTAINER_NAME}"; then
-          docker rm -f "${CONTAINER_NAME}"
-        fi
-        docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1 && docker rmi "${IMAGE_NAME}" || true
+          set +e
+          if [ -f .container_id ]; then
+            docker rm -f "$(cat .container_id)"
+            rm -f .container_id
+          fi
+          docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1 && docker rmi "${IMAGE_NAME}" || true
         '''
       }
     }
@@ -29,29 +29,57 @@ pipeline {
     stage('Install dependencies') {
       steps {
         sh '''
-        cd backend
-        npm ci
+          if [ ! -f backend/package-lock.json ]; then
+            echo "ERROR: backend/package-lock.json not found. Run 'npm install' locally first." >&2
+            exit 1
+          fi
+          cd backend && npm ci
         '''
       }
     }
 
     stage('Build Docker image') {
       steps {
-        sh 'docker build -t ${IMAGE_NAME} .'
+        sh "docker build -t ${env.IMAGE_NAME} ."
       }
     }
 
     stage('Run container') {
       steps {
-        sh 'docker run -d --name ${CONTAINER_NAME} -p 5000:5000 ${IMAGE_NAME}'
+        sh "docker run -d -p 127.0.0.1::5000 ${env.IMAGE_NAME} | tail -1 > .container_id"
       }
     }
 
     stage('Verify App') {
       steps {
-        sh 'sleep 5'
-        sh 'curl -f http://localhost:5000/health || exit 1'
+        sh '''
+          CID="$(cat .container_id)"
+
+          PORT="$(docker port "$CID" 5000/tcp | grep -m1 '127.0.0.1:' | awk -F: '{print $2}')"
+
+          if [ -z "$PORT" ]; then
+            echo "ERROR: could not determine host port for container $CID" >&2
+            exit 1
+          fi
+
+          curl -f \
+               --retry 10 \
+               --retry-delay 3 \
+               --retry-connrefused \
+               "http://127.0.0.1:${PORT}/health"
+        '''
       }
+    }
+  }
+
+  post {
+    always {
+      sh '''
+        if [ -f .container_id ]; then
+          docker rm -f "$(cat .container_id)" || true
+          rm -f .container_id || true
+        fi
+      '''
     }
   }
 }
