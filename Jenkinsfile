@@ -15,26 +15,14 @@ pipeline {
 
     stage('Cleanup') {
       steps {
-        sh '''
+        sh """
           set +e
           if [ -f .container_id ]; then
-            docker rm -f "$(cat .container_id)"
+            docker rm -f "\$(cat .container_id)"
             rm -f .container_id
           fi
-          docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1 && docker rmi "${IMAGE_NAME}" || true
-        '''
-      }
-    }
-
-    stage('Install dependencies') {
-      steps {
-        sh '''
-          if [ ! -f backend/package-lock.json ]; then
-            echo "ERROR: backend/package-lock.json not found. Run 'npm install' locally first." >&2
-            exit 1
-          fi
-          cd backend && npm ci
-        '''
+          docker image inspect "${env.IMAGE_NAME}" >/dev/null 2>&1 && docker rmi "${env.IMAGE_NAME}" || true
+        """
       }
     }
 
@@ -54,14 +42,11 @@ pipeline {
       steps {
         sh '''
           CID="$(cat .container_id)"
-
           PORT="$(docker port "$CID" 5000/tcp | grep -m1 '127.0.0.1:' | awk -F: '{print $2}')"
-
           if [ -z "$PORT" ]; then
             echo "ERROR: could not determine host port for container $CID" >&2
             exit 1
           fi
-
           curl -f \
                --retry 10 \
                --retry-delay 3 \
