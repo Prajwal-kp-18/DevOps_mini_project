@@ -45,7 +45,7 @@ pipeline {
     stage('Verify App') {
       steps {
         sh 'sleep 5'
-        sh 'curl -f http://localhost:5000 || exit 1'
+        sh 'curl -f http://localhost:5000/health || exit 1'
       }
     }
   }
