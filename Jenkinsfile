@@ -16,8 +16,13 @@ pipeline {
 
     stage('Cleanup') {
       steps {
-        sh 'docker rm -f ${CONTAINER_NAME} || true'
-        sh 'docker rmi ${IMAGE_NAME} || true'
+        sh '''
+        set -e
+        if docker ps -a --format '{{.Names}}' | grep -Fxq "${CONTAINER_NAME}"; then
+          docker rm -f "${CONTAINER_NAME}"
+        fi
+        docker image inspect "${IMAGE_NAME}" >/dev/null 2>&1 && docker rmi "${IMAGE_NAME}" || true
+        '''
       }
     }
 
